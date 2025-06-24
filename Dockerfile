@@ -1,5 +1,5 @@
-# 基础镜像，使用NVIDIA CUDA 11.8运行时环境
-FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+# 基础镜像，使用NVIDIA CUDA 11.8开发环境（包含nvcc等编译工具）
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
 # 设置镜像维护者信息
 LABEL maintainer="ChatTTS-Enhanced"
@@ -8,6 +8,8 @@ LABEL description="ChatTTS-Enhanced Docker Image with miniconda and dual service
 # 设置时区和环境变量
 ENV TZ=Asia/Shanghai
 ENV PATH="/opt/miniconda3/bin:$PATH"
+ENV CUDA_HOME=/usr/local/cuda
+ENV PATH="/usr/local/cuda/bin:$PATH"
 
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
@@ -47,6 +49,9 @@ WORKDIR /workspace
 
 # 复制ChatTTS-Enhanced项目代码（修改为当前目录）
 COPY . /workspace/ChatTTS-Enhanced/
+
+# 在Dlab环境中固定NumPy版本以避免与deepspeed冲突
+RUN /opt/miniconda3/bin/conda run -n Dlab pip install "numpy<2.0"
 
 # 在Dlab环境中安装resemble-enhance
 RUN /opt/miniconda3/bin/conda run -n Dlab pip install resemble-enhance
