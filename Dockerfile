@@ -41,8 +41,8 @@ RUN /opt/miniconda3/bin/conda init bash
 # 创建conda环境 Dlab python=3.10
 RUN /opt/miniconda3/bin/conda create -n Dlab python=3.10 -y
 
-# 在Dlab环境中安装PyTorch（按照README Linux部署流程）
-RUN /opt/miniconda3/bin/conda run -n Dlab conda install pytorch==2.1.1 torchvision==0.16.1 torchaudio==2.1.1 pytorch-cuda=11.8 -c pytorch -c nvidia -y
+# 在Dlab环境中安装PyTorch（使用pip安装最新稳定版本）
+RUN /opt/miniconda3/bin/conda run -n Dlab pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
 # 设定工作目录
 WORKDIR /workspace
@@ -50,11 +50,9 @@ WORKDIR /workspace
 # 复制ChatTTS-Enhanced项目代码（修改为当前目录）
 COPY . /workspace/ChatTTS-Enhanced/
 
-# 在Dlab环境中固定NumPy版本以避免与deepspeed冲突
-RUN /opt/miniconda3/bin/conda run -n Dlab pip install "numpy<2.0"
-
-# 在Dlab环境中安装resemble-enhance
-RUN /opt/miniconda3/bin/conda run -n Dlab pip install resemble-enhance
+# 在Dlab环境中先固定NumPy版本，然后安装resemble-enhance
+RUN /opt/miniconda3/bin/conda run -n Dlab pip install "numpy<2.0" && \
+    /opt/miniconda3/bin/conda run -n Dlab pip install resemble-enhance
 
 # 在Dlab环境中安装项目依赖（requirements.txt）
 RUN if [ -f /workspace/ChatTTS-Enhanced/requirements.txt ]; then \
