@@ -29,20 +29,13 @@ RUN apt-get update && \
         bzip2 \
         && rm -rf /var/lib/apt/lists/*
 
-# 下载并安装Miniconda3
+# 下载安装Miniconda3并创建环境（合并减少层数）
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
     bash /tmp/miniconda.sh -b -p /opt/miniconda3 && \
     rm /tmp/miniconda.sh && \
+    /opt/miniconda3/bin/conda init bash && \
+    /opt/miniconda3/bin/conda create -n Dlab python=3.10 -y && \
     /opt/miniconda3/bin/conda clean -afy
-
-# 初始化conda
-RUN /opt/miniconda3/bin/conda init bash
-
-# 创建conda环境 Dlab python=3.10
-RUN /opt/miniconda3/bin/conda create -n Dlab python=3.10 -y
-
-# 在Dlab环境中安装PyTorch（使用pip安装最新稳定版本）
-RUN /opt/miniconda3/bin/conda run -n Dlab pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
 # 设定工作目录
 WORKDIR /workspace
@@ -50,17 +43,19 @@ WORKDIR /workspace
 # 复制ChatTTS-Enhanced项目代码（修改为当前目录）
 COPY . /workspace/ChatTTS-Enhanced/
 
-# 在Dlab环境中先固定NumPy版本，然后安装resemble-enhance
-RUN /opt/miniconda3/bin/conda run -n Dlab pip install "numpy<2.0" && \
-    /opt/miniconda3/bin/conda run -n Dlab pip install resemble-enhance
-
-# 在Dlab环境中安装项目依赖（requirements.txt）
-RUN if [ -f /workspace/ChatTTS-Enhanced/requirements.txt ]; then \
+# 在Dlab环境中安装所有Python依赖（合并安装以减少层数和清理缓存）
+RUN /opt/miniconda3/bin/conda run -n Dlab pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu118 && \
+    /opt/miniconda3/bin/conda run -n Dlab pip install --no-cache-dir "numpy<2.0" && \
+    /opt/miniconda3/bin/conda run -n Dlab pip install --no-cache-dir resemble-enhance && \
+    /opt/miniconda3/bin/conda run -n Dlab pip install --no-cache-dir WeTextProcessing && \
+    if [ -f /workspace/ChatTTS-Enhanced/requirements.txt ]; then \
         /opt/miniconda3/bin/conda run -n Dlab pip install --no-cache-dir -r /workspace/ChatTTS-Enhanced/requirements.txt; \
-    fi
-
-# 在Dlab环境中安装WeTextProcessing
-RUN /opt/miniconda3/bin/conda run -n Dlab pip install WeTextProcessing
+    fi && \
+    /opt/miniconda3/bin/conda clean -afy && \
+    rm -rf /opt/miniconda3/pkgs/* && \
+    find /opt/miniconda3/envs/Dlab -name "*.pyc" -delete && \
+    find /opt/miniconda3/envs/Dlab -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    find /tmp -name "*.whl" -delete 2>/dev/null || true
 
 # 创建启动脚本（激活conda环境）
 RUN echo '#!/bin/bash\n\
